@@ -1,245 +1,563 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity >=0.5.0 <0.9.0;
 
-contract Tendor {
-    address public SuperAdminAddress;
-    uint256 public TotalAdmins;
-    uint256 public TotalVendors;
-    uint256 public TotalTenders;
-    uint256 public TenderIDConstant = 10000;
+contract Registry {
+    address public superAdmin;
+    uint256 public totalAdmins;
+    uint256 public totalVendors;
 
     struct Admin {
-        string AdminName;
-        address AdminAddress;
-        string AdminContactAddress;
-        string AdminContactNumber;
-        string AdminEmailAddress;
+        address adminAddress;
+        string city;
+        string district;
+        string state;
     }
 
     struct Vendor {
-        string VendorName;
-        address VendorAddress;
-        string VendorType;
-        string EstablishedYear;
-        string VendorContactAddress;
-        string VendorContactNumber;
-        string VendorEmailAddress;
-        uint256 VendorRating;
-        uint256 TotalIndices; // Land-Registry
-        uint256 Requestindices;
+        address payable vendorAddress;
+        string city;
+        string district;
+        string state;
+        uint256 rating;
+        uint256 noofRaters;
     }
 
-    struct Tender {
-        uint256 TenderId;
-        string TenderName;
-        string TenderType;
-        string Description;
-        uint256 TenderBudget;
-        string TenderDeadline;
-        string TenderLocation;
-        address TenderCreator;
-        mapping(uint256 => RequestDetails) requests;
-        uint256 NoOfRequests;
-        address TenderHolder;
-        bool TenderAllocated;
-        bool TenderStatus;
+    struct LandDetails {
+        address owner;
+        address admin;
+        uint256 propertyId;
+        uint256 surveyNumber;
+        uint256 index;
+        bool registered;
+        uint256 marketValue;
+        bool markAvailable;
+        mapping(uint256 => RequestDetails) requests; // reqNo => RequestDetails
+        uint256 noOfRequests; // other users requested to this land
+        uint256 sqft;
+    }
+
+    struct UserProfile {
+        address userAddr;
+        string fullName;
+        string gender;
+        string email;
+        uint256 contact;
+        string residentialAddr;
+        uint256 totalIndices;
+        uint256 requestIndices; // this user requested to other lands
+    }
+
+    struct OwnerOwns {
+        uint256 surveyNumber;
+        string state;
+        string district;
+        string city;
+    }
+
+    struct AdminOwns {
+        uint256 surveyNo;
+        string state;
+        string district;
+        string city;
+        address AllocatedTo;
+    }
+
+    struct RequestedLands {
+        uint256 surveyNumber;
+        string state;
+        string district;
+        string city;
     }
 
     struct RequestDetails {
-        address Whorequested;
-        uint256 BidAmount;
+        address payable whoRequested;
         uint256 reqIndex;
-        //details
-    }
-
-    struct RequestedTenders {
-        uint256 TenderId;
         uint256 BidAmount;
     }
-
-    struct VenderOwns {
-        uint TenderId;
-    }
-
-    VenderOwns public VenderOwnsPublic;
 
     mapping(address => Admin) public admins;
     mapping(address => Vendor) public vendors;
-    mapping(uint256 => Tender) public tenders;
-    mapping(address => mapping(uint256 => RequestedTenders)) public requestedTendersmapping;
-    mapping(address => mapping(uint256 => VenderOwns)) public VenderOwnsTenderMapping;
+    mapping(address => mapping(uint256 => OwnerOwns)) public ownerMapsProperty;
+    mapping(address => mapping(uint256 => AdminOwns)) public adminMapsProperty; // ownerAddr => index no. => OwnerOwns
+    mapping(address => mapping(uint256 => RequestedLands))
+        public requestedLands; // ownerAddr => reqIndex => RequestedLands
+    mapping(string => mapping(string => mapping(string => mapping(uint256 => LandDetails))))
+        public landDetalsMap; // state => district => city => surveyNo => LandDetails
+    mapping(address => UserProfile) public userProfile;
 
     constructor() {
-        SuperAdminAddress = msg.sender;
+        superAdmin = msg.sender;
     }
 
-    modifier OnlySuperAdmin() {
-        require(SuperAdminAddress == msg.sender, "Only SuperAdmin Can Change");
-        _;
-    }
-
-    modifier OnlyAdmin() {
+    modifier onlyAdmin() {
         require(
-            admins[msg.sender].AdminAddress == msg.sender,
-            "Only Admin Can Change"
+            admins[msg.sender].adminAddress == msg.sender,
+            "Only admin can Register land"
         );
         _;
     }
 
-    modifier OnlyVendor() {
-        require(
-            vendors[msg.sender].VendorAddress == msg.sender,
-            "You Must Be a Vendor"
-        );
-        _;
+    // SuperAdmin: Registers new admin
+    function addAdmin(
+        address _adminAddr,
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        string memory _fullName,
+        string memory _gender,
+        string memory _email,
+        uint256 _contact,
+        string memory _residentialAddr
+    ) external {
+        Admin storage newAdmin = admins[_adminAddr];
+        totalAdmins++;
+
+        newAdmin.adminAddress = _adminAddr;
+        newAdmin.city = _city;
+        newAdmin.district = _district;
+        newAdmin.state = _state;
+
+        UserProfile storage newUserProfile = userProfile[_adminAddr];
+
+        newUserProfile.fullName = _fullName;
+        newUserProfile.gender = _gender;
+        newUserProfile.email = _email;
+        newUserProfile.contact = _contact;
+        newUserProfile.residentialAddr = _residentialAddr;
     }
 
-    function AddAdmin(
-        string memory _AdminName,
-        address _Adminaddress,
-        string memory _AdminContactAddress,
-        string memory _AdminContactNumber,
-        string memory _AdminEmailAddress
-    ) external OnlySuperAdmin {
-        Admin storage NewAdmin = admins[_Adminaddress];
-        NewAdmin.AdminName = _AdminName;
-        NewAdmin.AdminAddress = _Adminaddress;
-        NewAdmin.AdminContactAddress = _AdminContactAddress;
-        NewAdmin.AdminContactNumber = _AdminContactNumber;
-        NewAdmin.AdminEmailAddress = _AdminEmailAddress;
-        TotalAdmins++;
+    function addVendor(
+        address payable _vendorAddr,
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        string memory _fullName,
+        string memory _gender,
+        string memory _email,
+        uint256 _contact,
+        string memory _residentialAddr
+    ) external {
+        Vendor storage newVendor = vendors[_vendorAddr];
+        totalVendors++;
+
+        newVendor.vendorAddress = _vendorAddr;
+        newVendor.city = _city;
+        newVendor.district = _district;
+        newVendor.state = _state;
+        newVendor.rating=5;
+        newVendor.noofRaters=1;
+        
+        UserProfile storage newUserProfile = userProfile[_vendorAddr];
+
+        newUserProfile.fullName = _fullName;
+        newUserProfile.gender = _gender;
+        newUserProfile.email = _email;
+        newUserProfile.contact = _contact;
+        newUserProfile.residentialAddr = _residentialAddr;
     }
 
+   //function Give Rating 
+   function GiveRating(address _vendortorating,uint256 _ratenumber) public {
+        vendors[_vendortorating].rating= vendors[_vendortorating].rating+_ratenumber;
+         vendors[_vendortorating].noofRaters++;
+   }
+
+    // check if it is admin
     function isAdmin() external view returns (bool) {
-        if (admins[msg.sender].AdminAddress == msg.sender) {
+        if (admins[msg.sender].adminAddress == msg.sender) {
             return true;
         } else return false;
     }
 
-    function AddVendors(
-        string memory _VendorName,
-        address _VendorAddress,
-        string memory _VendorType,
-        string memory _EstablishedYear,
-        string memory _VendorContactAddress,
-        string memory _VendorContactNumber,
-        string memory _VendorEmailAddress,
-        uint256 _VendorRating
-    ) external OnlySuperAdmin {
-        Vendor storage NewVendor = vendors[_VendorAddress];
-        NewVendor.VendorName = _VendorName;
-        NewVendor.VendorAddress = _VendorAddress;
-        NewVendor.VendorType = _VendorType;
-        NewVendor.EstablishedYear = _EstablishedYear;
-        NewVendor.VendorContactAddress = _VendorContactAddress;
-        NewVendor.VendorContactNumber = _VendorContactNumber;
-        NewVendor.VendorEmailAddress = _VendorEmailAddress;
-        NewVendor.VendorRating = _VendorRating;
-        TotalVendors++;
-    }
-
+    //Chekc if it is Vendor
     function isVendor() external view returns (bool) {
-        if (vendors[msg.sender].VendorAddress == msg.sender) {
+        if (vendors[msg.sender].vendorAddress == msg.sender) {
             return true;
         } else return false;
     }
 
-    function CreateTender(
-        string memory _TenderName,
-        string memory _TenderType,
-        string memory _Description,
-        uint256 _Budget,
-        string memory _TenderDeadline,
-        string memory _TenderLocation
-    ) external OnlyAdmin {
-        Tender storage NewTenders = tenders[TenderIDConstant];
+    // Admin: registers land
+    function registerLand(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _propertyId,
+        uint256 _surveyNo,
+        address _owner,
+        uint256 _marketValue,
+        uint256 _sqft
+    ) external onlyAdmin {
+        require(
+            keccak256(abi.encodePacked(admins[msg.sender].state)) ==
+                keccak256(abi.encodePacked(_state)) &&
+                keccak256(abi.encodePacked(admins[msg.sender].district)) ==
+                keccak256(abi.encodePacked(_district)) &&
+                keccak256(abi.encodePacked(admins[msg.sender].city)) ==
+                keccak256(abi.encodePacked(_city)),
+            "Admin can only register land of same city."
+        );
 
-        NewTenders.TenderId = TenderIDConstant;
-        NewTenders.TenderName = _TenderName;
-        NewTenders.TenderType = _TenderType;
-        NewTenders.Description = _Description;
-        NewTenders.TenderBudget = _Budget;
-        NewTenders.TenderDeadline = _TenderDeadline;
-        NewTenders.TenderLocation = _TenderLocation;
-        NewTenders.TenderCreator = msg.sender;
-        NewTenders.TenderHolder = msg.sender;
-        NewTenders.TenderStatus = true;
-        NewTenders.TenderAllocated=false;
-        TenderIDConstant++;
-        TotalTenders++;
+        require(
+            landDetalsMap[_state][_district][_city][_surveyNo].registered ==
+                false,
+            "Survey Number already registered!"
+        );
+
+        LandDetails storage newLandRegistry = landDetalsMap[_state][_district][
+            _city
+        ][_surveyNo];
+
+        OwnerOwns storage newOwnerOwns = ownerMapsProperty[_owner][
+            userProfile[_owner].totalIndices
+        ];
+
+        AdminOwns storage newAdminOwns = adminMapsProperty[msg.sender][
+            userProfile[msg.sender].totalIndices
+        ];
+
+        newLandRegistry.owner = _owner;
+        newLandRegistry.admin = msg.sender;
+        newLandRegistry.propertyId = _propertyId;
+        newLandRegistry.surveyNumber = _surveyNo;
+        newLandRegistry.index = userProfile[_owner].totalIndices;
+        newLandRegistry.registered = true;
+        newLandRegistry.marketValue = _marketValue;
+        newLandRegistry.markAvailable = false;
+        newLandRegistry.sqft = _sqft;
+
+        newOwnerOwns.surveyNumber = _surveyNo;
+        newOwnerOwns.state = _state;
+        newOwnerOwns.district = _district;
+        newOwnerOwns.city = _city;
+
+        userProfile[_owner].totalIndices++;
     }
 
-    function getParticulartendor(uint256 _TenderId)
-        public
+    // User_1: set user profile
+    function setUserProfile(
+        string memory _fullName,
+        string memory _gender,
+        string memory _email,
+        uint256 _contact,
+        string memory _residentialAddr
+    ) public {
+        UserProfile storage newUserProfile = userProfile[msg.sender];
+
+        newUserProfile.fullName = _fullName;
+        newUserProfile.gender = _gender;
+        newUserProfile.email = _email;
+        newUserProfile.contact = _contact;
+        newUserProfile.residentialAddr = _residentialAddr;
+    }
+
+    // User_1: mark property available
+    function markMyPropertyAvailable(uint256 indexNo) external {
+        string memory state = ownerMapsProperty[msg.sender][indexNo].state;
+        string memory district = ownerMapsProperty[msg.sender][indexNo]
+            .district;
+        string memory city = ownerMapsProperty[msg.sender][indexNo].city;
+        uint256 surveyNumber = ownerMapsProperty[msg.sender][indexNo]
+            .surveyNumber;
+
+        require(
+            landDetalsMap[state][district][city][surveyNumber].markAvailable ==
+                false,
+            "Property already marked available"
+        );
+
+        landDetalsMap[state][district][city][surveyNumber].markAvailable = true;
+    }
+
+    // User_2: Request for buy  *ownerAddress & index = arguements*
+    function RequestForBuy(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _surveyNo,
+        uint256 _BidAmount
+    ) external {
+        LandDetails storage thisLandDetail = landDetalsMap[_state][_district][
+            _city
+        ][_surveyNo];
+        require(
+            thisLandDetail.markAvailable == true,
+            "This property is NOT marked for sale!"
+        );
+
+        uint256 req_serialNum = thisLandDetail.noOfRequests;
+        thisLandDetail.requests[req_serialNum].whoRequested = payable(
+            msg.sender
+        );
+        thisLandDetail.requests[req_serialNum].reqIndex = userProfile[
+            msg.sender
+        ].requestIndices;
+        thisLandDetail.requests[req_serialNum].BidAmount = _BidAmount;
+        thisLandDetail.noOfRequests++;
+
+        // adding requested land to user_2 profile
+        RequestedLands storage newReqestedLands = requestedLands[msg.sender][
+            userProfile[msg.sender].requestIndices
+        ];
+        newReqestedLands.surveyNumber = _surveyNo;
+        newReqestedLands.state = _state;
+        newReqestedLands.district = _district;
+        newReqestedLands.city = _city;
+
+        userProfile[msg.sender].requestIndices++;
+    }
+
+    // User_1: Accept the buy request; sell.
+    function AcceptRequest(uint256 _index, uint256 _reqNo) public payable {
+        uint256 _surveyNo = ownerMapsProperty[msg.sender][_index].surveyNumber;
+        string memory _state = ownerMapsProperty[msg.sender][_index].state;
+        string memory _district = ownerMapsProperty[msg.sender][_index]
+            .district;
+        string memory _city = ownerMapsProperty[msg.sender][_index].city;
+
+        // updating LandDetails
+        address payable newOwner = landDetalsMap[_state][_district][_city][
+            _surveyNo
+        ].requests[_reqNo].whoRequested;
+
+        uint256 amounttopay
+        =landDetalsMap[_state][_district][_city][
+            _surveyNo
+        ].requests[_reqNo].BidAmount;
+
+        newOwner.transfer(amounttopay);
+
+        uint256 newOwner_reqIndex = landDetalsMap[_state][_district][_city][
+            _surveyNo
+        ].requests[_reqNo].reqIndex;
+
+
+        uint256 noOfReq = landDetalsMap[_state][_district][_city][_surveyNo]
+            .noOfRequests;
+
+        // deleting requested land from all requesters AND removing all incoming requests
+        for (uint256 i = 0; i < noOfReq; i++) {
+            address requesterAddr = landDetalsMap[_state][_district][_city][
+                _surveyNo
+            ].requests[i].whoRequested;
+            uint256 requester_reqIndx = landDetalsMap[_state][_district][_city][
+                _surveyNo
+            ].requests[i].reqIndex;
+
+            delete requestedLands[requesterAddr][requester_reqIndx];
+            delete landDetalsMap[_state][_district][_city][_surveyNo].requests[
+                i
+            ];
+        }
+
+        landDetalsMap[_state][_district][_city][_surveyNo].owner = newOwner;
+        landDetalsMap[_state][_district][_city][_surveyNo]
+            .markAvailable = false;
+        landDetalsMap[_state][_district][_city][_surveyNo].noOfRequests = 0;
+
+        // deleting property from user_1's ownerMapsProperty
+        // delete ownerMapsProperty[msg.sender][_index];
+
+        // adding ownerMapsProperty for newOwner
+        uint256 newOwnerTotProp = userProfile[newOwner].totalIndices;
+        OwnerOwns storage newOwnerOwns = ownerMapsProperty[newOwner][
+            newOwnerTotProp
+        ];
+
+        newOwnerOwns.surveyNumber = _surveyNo;
+        newOwnerOwns.state = _state;
+        newOwnerOwns.district = _district;
+        newOwnerOwns.city = _city;
+
+        landDetalsMap[_state][_district][_city][_surveyNo]
+            .index = newOwnerTotProp;
+
+        userProfile[newOwner].totalIndices++;
+    }
+
+    //******* GETTERS **********
+
+    // return land details
+    function getLandDetails(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _surveyNo
+    )
+        external
+        view
+        returns (
+            address,
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        address owner = landDetalsMap[_state][_district][_city][_surveyNo]
+            .owner;
+        uint256 propertyid = landDetalsMap[_state][_district][_city][_surveyNo]
+            .propertyId;
+        uint256 indx = landDetalsMap[_state][_district][_city][_surveyNo].index;
+        uint256 mv = landDetalsMap[_state][_district][_city][_surveyNo]
+            .marketValue;
+        uint256 sqft = landDetalsMap[_state][_district][_city][_surveyNo].sqft;
+
+        return (owner, propertyid, indx, mv, sqft);
+    }
+
+    function getRequestCnt_propId(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _surveyNo
+    ) external view returns (uint256, uint256) {
+        uint256 _noOfRequests = landDetalsMap[_state][_district][_city][
+            _surveyNo
+        ].noOfRequests;
+        uint256 _propertyId = landDetalsMap[_state][_district][_city][_surveyNo]
+            .propertyId;
+        return (_noOfRequests, _propertyId);
+    }
+
+    function getRequesterDetail(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _surveyNo,
+        uint256 _reqIndex
+    )
+        external
+        view
+        returns (
+            address,
+            uint256,
+            string memory
+        )
+    {
+        address requester = landDetalsMap[_state][_district][_city][_surveyNo]
+            .requests[_reqIndex]
+            .whoRequested;
+
+        uint256 BidAmount = landDetalsMap[_state][_district][_city][_surveyNo]
+            .requests[_reqIndex]
+            .BidAmount;
+
+        string memory NameofRequester = userProfile[requester].fullName;
+
+        return (requester, BidAmount, NameofRequester);
+    }
+
+    function isAvailable(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _surveyNo
+    ) external view returns (bool) {
+        bool available = landDetalsMap[_state][_district][_city][_surveyNo]
+            .markAvailable;
+        return (available);
+    }
+
+    function getOwnerOwns(uint256 indx)
+        external
+        view
+        returns (
+            string memory,
+            string memory,
+            string memory,
+            uint256
+        )
+    {
+        uint256 surveyNo = ownerMapsProperty[msg.sender][indx].surveyNumber;
+        string memory state = ownerMapsProperty[msg.sender][indx].state;
+        string memory district = ownerMapsProperty[msg.sender][indx].district;
+        string memory city = ownerMapsProperty[msg.sender][indx].city;
+
+        return (state, district, city, surveyNo);
+    }
+
+    function getAdminOwns(uint256 indx)
+        external
+        view
+        returns (
+            string memory,
+            string memory,
+            string memory,
+            uint256
+        )
+    {
+        uint256 surveyNo = adminMapsProperty[msg.sender][indx].surveyNo;
+        string memory state = adminMapsProperty[msg.sender][indx].state;
+        string memory district = adminMapsProperty[msg.sender][indx].district;
+        string memory city = adminMapsProperty[msg.sender][indx].city;
+
+        return (state, district, city, surveyNo);
+    }
+
+    function getRequestedLands(uint256 indx)
+        external
+        view
+        returns (
+            string memory,
+            string memory,
+            string memory,
+            uint256
+        )
+    {
+        uint256 surveyNo = requestedLands[msg.sender][indx].surveyNumber;
+        string memory state = requestedLands[msg.sender][indx].state;
+        string memory district = requestedLands[msg.sender][indx].district;
+        string memory city = requestedLands[msg.sender][indx].city;
+
+        return (state, district, city, surveyNo);
+    }
+
+    function getUserProfile()
+        external
         view
         returns (
             string memory,
             string memory,
             string memory,
             uint256,
-            string memory,
-            string memory,
-            address,
-            address,
-            bool,
-            bool
+            string memory
         )
     {
-        Tender storage ParticularTender = tenders[_TenderId];
-        return (
-            ParticularTender.TenderName,
-            ParticularTender.TenderType,
-            ParticularTender.Description,
-            ParticularTender.TenderBudget,
-            ParticularTender.TenderDeadline,
-            ParticularTender.TenderLocation,
-            ParticularTender.TenderCreator,
-            ParticularTender.TenderHolder,
-            ParticularTender.TenderStatus,
-            ParticularTender.TenderAllocated
-        );
+        string memory fullName = userProfile[msg.sender].fullName;
+        string memory gender = userProfile[msg.sender].gender;
+        string memory email = userProfile[msg.sender].email;
+        uint256 contact = userProfile[msg.sender].contact;
+        string memory residentialAddr = userProfile[msg.sender].residentialAddr;
+
+        return (fullName, gender, email, contact, residentialAddr);
     }
 
-    function MakeBid(uint256 _TenderId, uint256 _BidAmount) public OnlyVendor {
-        Tender storage thisTender = tenders[_TenderId];
-        require(thisTender.TenderStatus == true, "Tender is Not Available");
-        uint256 req_serialNum = thisTender.NoOfRequests;
-        thisTender.requests[req_serialNum].Whorequested = msg.sender;
-        thisTender.requests[req_serialNum].reqIndex = vendors[msg.sender].Requestindices;
-        thisTender.requests[req_serialNum].BidAmount = _BidAmount;
-        thisTender.NoOfRequests++;
+    function getIndices() external view returns (uint256, uint256) {
+        uint256 _totalIndices = userProfile[msg.sender].totalIndices;
+        uint256 _reqIndices = userProfile[msg.sender].requestIndices;
 
-        // Adding Requested Tender to Vendor Profile //
-        RequestedTenders storage NewRequestedTenders = requestedTendersmapping[msg.sender][vendors[msg.sender].Requestindices];
-        NewRequestedTenders.TenderId = _TenderId;
-        NewRequestedTenders.BidAmount = _BidAmount;
-
-        vendors[msg.sender].Requestindices++;
+        return (_totalIndices, _reqIndices);
     }
 
-    //Allocate Tender
-    function AllocateTender(uint256 _index, uint256 _Reqno) external {
+    function didIRequested(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _surveyNo
+    ) external view returns (bool) {
+        LandDetails storage thisLandDetail = landDetalsMap[_state][_district][
+            _city
+        ][_surveyNo];
+        uint256 _noOfRequests = thisLandDetail.noOfRequests;
 
-        uint256 _TenderIdToAllocate = VenderOwnsTenderMapping[msg.sender][_index].TenderId;
-        address NewTenderOwner = tenders[_TenderIdToAllocate].requests[_Reqno].Whorequested;
-        tenders[_TenderIdToAllocate].TenderHolder = NewTenderOwner;
-        tenders[_TenderIdToAllocate].TenderAllocated=true;
-        tenders[_TenderIdToAllocate].TenderStatus=false;
+        if (_noOfRequests == 0) return (false);
 
-     // Adding VendorOwns To newvendor 
-       uint newOwnerToTender=vendors[NewTenderOwner].TotalIndices;
-       VenderOwns storage NewVenderOwns=VenderOwnsTenderMapping[NewTenderOwner][newOwnerToTender];
+        for (uint256 i = 0; i < _noOfRequests; i++) {
+            if (thisLandDetail.requests[i].whoRequested == msg.sender) {
+                return (true);
+            }
+        }
 
-       NewVenderOwns.TenderId==_TenderIdToAllocate;
-
-       vendors[NewTenderOwner].TotalIndices++;
-
+        return (false);
     }
-
-    function getRequestedvendorDetails(uint _tenderid,uint _reqindex) public view returns(address){
-       return tenders[_tenderid].requests[_reqindex].Whorequested;
-    }
-  
-
-
 }
