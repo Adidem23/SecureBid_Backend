@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity >=0.5.0 <0.9.0;
 
-//Aditya Bhai ke aage koi bol sakta hai kya aditya bhaiiiiiiiiiiiiiii
-
 contract Registry {
+
     address public superAdmin;
     uint256 public totalAdmins;
     uint256 public totalVendors;
@@ -20,13 +20,18 @@ contract Registry {
         string city;
         string district;
         string state;
+        string year;
+        string vendortype;
         uint256 rating;
         uint256 noofRaters;
     }
 
     struct LandDetails {
         address owner;
+        string tendertype;
+        string tenderName;
         address admin;
+        string ipfsuri;
         uint256 propertyId;
         uint256 surveyNumber;
         uint256 index;
@@ -35,7 +40,6 @@ contract Registry {
         bool markAvailable;
         mapping(uint256 => RequestDetails) requests; // reqNo => RequestDetails
         uint256 noOfRequests; // other users requested to this land
-        uint256 sqft;
     }
 
     struct UserProfile {
@@ -137,7 +141,9 @@ contract Registry {
         string memory _gender,
         string memory _email,
         uint256 _contact,
-        string memory _residentialAddr
+        string memory _residentialAddr,
+        string memory _year,
+        string memory _vendortype
     ) external {
         Vendor storage newVendor = vendors[_vendorAddr];
         totalVendors++;
@@ -148,6 +154,8 @@ contract Registry {
         newVendor.state = _state;
         newVendor.rating=5;
         newVendor.noofRaters=1;
+        newVendor.vendortype=_vendortype;
+        newVendor.year=_year;
         
         UserProfile storage newUserProfile = userProfile[_vendorAddr];
 
@@ -187,7 +195,8 @@ contract Registry {
         uint256 _surveyNo,
         address _owner,
         uint256 _marketValue,
-        uint256 _sqft
+        string memory _tenderName,
+        string memory _tendertype
     ) external onlyAdmin {
         require(
             keccak256(abi.encodePacked(admins[msg.sender].state)) ==
@@ -205,12 +214,13 @@ contract Registry {
             "Survey Number already registered!"
         );
 
+
         LandDetails storage newLandRegistry = landDetalsMap[_state][_district][
             _city
         ][_surveyNo];
 
-        OwnerOwns storage newOwnerOwns = ownerMapsProperty[_owner][
-            userProfile[_owner].totalIndices
+        OwnerOwns storage newOwnerOwns = ownerMapsProperty[msg.sender][
+            userProfile[msg.sender].totalIndices
         ];
 
         AdminOwns storage newAdminOwns = adminMapsProperty[msg.sender][
@@ -224,8 +234,10 @@ contract Registry {
         newLandRegistry.index = userProfile[_owner].totalIndices;
         newLandRegistry.registered = true;
         newLandRegistry.marketValue = _marketValue;
-        newLandRegistry.markAvailable = false;
-        newLandRegistry.sqft = _sqft;
+        newLandRegistry.markAvailable = true;
+        newLandRegistry.tenderName=_tenderName;
+        newLandRegistry.tendertype=_tendertype;
+        newLandRegistry.ipfsuri="No URI";
 
         newOwnerOwns.surveyNumber = _surveyNo;
         newOwnerOwns.state = _state;
@@ -391,7 +403,6 @@ contract Registry {
             address,
             uint256,
             uint256,
-            uint256,
             uint256
         )
     {
@@ -402,9 +413,8 @@ contract Registry {
         uint256 indx = landDetalsMap[_state][_district][_city][_surveyNo].index;
         uint256 mv = landDetalsMap[_state][_district][_city][_surveyNo]
             .marketValue;
-        uint256 sqft = landDetalsMap[_state][_district][_city][_surveyNo].sqft;
 
-        return (owner, propertyid, indx, mv, sqft);
+        return (owner, propertyid, indx, mv);
     }
 
     function getRequestCnt_propId(
