@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.5.0 <0.9.0;
 
+//Aditya Bhai ke aage koi bol sakta hai kya aditya bhaiiiiiiiiiiiiiii
+
 contract Registry {
     address public superAdmin;
     uint256 public totalAdmins;
