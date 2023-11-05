@@ -3,10 +3,10 @@
 pragma solidity >=0.5.0 <0.9.0;
 
 contract Registry {
-
     address public superAdmin;
     uint256 public totalAdmins;
     uint256 public totalVendors;
+    uint256 public totalTendors = 1000;
 
     struct Admin {
         address adminAddress;
@@ -42,12 +42,14 @@ contract Registry {
         uint256 noOfRequests; // other users requested to this land
     }
 
+
+
     struct UserProfile {
         address userAddr;
         string fullName;
         string gender;
         string email;
-        uint256 contact;
+        string contact;
         string residentialAddr;
         uint256 totalIndices;
         uint256 requestIndices; // this user requested to other lands
@@ -112,7 +114,7 @@ contract Registry {
         string memory _fullName,
         string memory _gender,
         string memory _email,
-        uint256 _contact,
+        string memory _contact,
         string memory _residentialAddr
     ) external {
         Admin storage newAdmin = admins[_adminAddr];
@@ -140,7 +142,7 @@ contract Registry {
         string memory _fullName,
         string memory _gender,
         string memory _email,
-        uint256 _contact,
+        string memory _contact,
         string memory _residentialAddr,
         string memory _year,
         string memory _vendortype
@@ -152,11 +154,11 @@ contract Registry {
         newVendor.city = _city;
         newVendor.district = _district;
         newVendor.state = _state;
-        newVendor.rating=5;
-        newVendor.noofRaters=1;
-        newVendor.vendortype=_vendortype;
-        newVendor.year=_year;
-        
+        newVendor.rating = 5;
+        newVendor.noofRaters = 1;
+        newVendor.vendortype = _vendortype;
+        newVendor.year = _year;
+
         UserProfile storage newUserProfile = userProfile[_vendorAddr];
 
         newUserProfile.fullName = _fullName;
@@ -166,11 +168,13 @@ contract Registry {
         newUserProfile.residentialAddr = _residentialAddr;
     }
 
-   //function Give Rating 
-   function GiveRating(address _vendortorating,uint256 _ratenumber) public {
-        vendors[_vendortorating].rating= vendors[_vendortorating].rating+_ratenumber;
-         vendors[_vendortorating].noofRaters++;
-   }
+    //function Give Rating
+    function GiveRating(address _vendortorating, uint256 _ratenumber) public {
+        vendors[_vendortorating].rating =
+            vendors[_vendortorating].rating +
+            _ratenumber;
+        vendors[_vendortorating].noofRaters++;
+    }
 
     // check if it is admin
     function isAdmin() external view returns (bool) {
@@ -209,15 +213,14 @@ contract Registry {
         );
 
         require(
-            landDetalsMap[_state][_district][_city][_surveyNo].registered ==
+            landDetalsMap[_state][_district][_city][totalTendors].registered ==
                 false,
             "Survey Number already registered!"
         );
 
-
         LandDetails storage newLandRegistry = landDetalsMap[_state][_district][
             _city
-        ][_surveyNo];
+        ][totalTendors];
 
         OwnerOwns storage newOwnerOwns = ownerMapsProperty[msg.sender][
             userProfile[msg.sender].totalIndices
@@ -230,21 +233,23 @@ contract Registry {
         newLandRegistry.owner = _owner;
         newLandRegistry.admin = msg.sender;
         newLandRegistry.propertyId = _propertyId;
-        newLandRegistry.surveyNumber = _surveyNo;
+        newLandRegistry.surveyNumber = totalTendors;
         newLandRegistry.index = userProfile[_owner].totalIndices;
         newLandRegistry.registered = true;
         newLandRegistry.marketValue = _marketValue;
         newLandRegistry.markAvailable = true;
-        newLandRegistry.tenderName=_tenderName;
-        newLandRegistry.tendertype=_tendertype;
-        newLandRegistry.ipfsuri="No URI";
+        newLandRegistry.tenderName = _tenderName;
+        newLandRegistry.tendertype = _tendertype;
+        newLandRegistry.ipfsuri = "No URI";
 
-        newOwnerOwns.surveyNumber = _surveyNo;
+        newOwnerOwns.surveyNumber = totalTendors;
         newOwnerOwns.state = _state;
         newOwnerOwns.district = _district;
         newOwnerOwns.city = _city;
 
         userProfile[_owner].totalIndices++;
+
+        totalTendors++;
     }
 
     // User_1: set user profile
@@ -252,7 +257,7 @@ contract Registry {
         string memory _fullName,
         string memory _gender,
         string memory _email,
-        uint256 _contact,
+        string memory _contact,
         string memory _residentialAddr
     ) public {
         UserProfile storage newUserProfile = userProfile[msg.sender];
@@ -333,17 +338,15 @@ contract Registry {
             _surveyNo
         ].requests[_reqNo].whoRequested;
 
-        uint256 amounttopay
-        =landDetalsMap[_state][_district][_city][
-            _surveyNo
-        ].requests[_reqNo].BidAmount;
+        uint256 amounttopay = landDetalsMap[_state][_district][_city][_surveyNo]
+            .requests[_reqNo]
+            .BidAmount;
 
         newOwner.transfer(amounttopay);
 
         uint256 newOwner_reqIndex = landDetalsMap[_state][_district][_city][
             _surveyNo
         ].requests[_reqNo].reqIndex;
-
 
         uint256 noOfReq = landDetalsMap[_state][_district][_city][_surveyNo]
             .noOfRequests;
@@ -531,14 +534,14 @@ contract Registry {
             string memory,
             string memory,
             string memory,
-            uint256,
+            string memory,
             string memory
         )
     {
         string memory fullName = userProfile[msg.sender].fullName;
         string memory gender = userProfile[msg.sender].gender;
         string memory email = userProfile[msg.sender].email;
-        uint256 contact = userProfile[msg.sender].contact;
+        string memory contact = userProfile[msg.sender].contact;
         string memory residentialAddr = userProfile[msg.sender].residentialAddr;
 
         return (fullName, gender, email, contact, residentialAddr);
