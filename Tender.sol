@@ -49,7 +49,7 @@ contract Registry {
         string fullName;
         string gender;
         string email;
-        string contact;
+        uint256 contact;
         string residentialAddr;
         uint256 totalIndices;
         uint256 requestIndices; // this user requested to other lands
@@ -114,7 +114,7 @@ contract Registry {
         string memory _fullName,
         string memory _gender,
         string memory _email,
-        string memory _contact,
+        uint256 _contact,
         string memory _residentialAddr
     ) external {
         Admin storage newAdmin = admins[_adminAddr];
@@ -142,7 +142,7 @@ contract Registry {
         string memory _fullName,
         string memory _gender,
         string memory _email,
-        string memory _contact,
+        uint256 _contact,
         string memory _residentialAddr,
         string memory _year,
         string memory _vendortype
@@ -257,7 +257,7 @@ contract Registry {
         string memory _fullName,
         string memory _gender,
         string memory _email,
-        string memory _contact,
+        uint256 _contact,
         string memory _residentialAddr
     ) public {
         UserProfile storage newUserProfile = userProfile[msg.sender];
@@ -287,7 +287,7 @@ contract Registry {
         landDetalsMap[state][district][city][surveyNumber].markAvailable = true;
     }
 
-    // User_2: Request for buy  *ownerAddress & index = arguements*
+    // User_2: Request for buy  ownerAddress & index = arguements
     function RequestForBuy(
         string memory _state,
         string memory _district,
@@ -444,22 +444,56 @@ contract Registry {
         external
         view
         returns (
-            address,
-            uint256,
-            string memory
+            address
         )
     {
         address requester = landDetalsMap[_state][_district][_city][_surveyNo]
             .requests[_reqIndex]
             .whoRequested;
 
+        return (requester);
+    }
+
+    function getRequesterBidAmount(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _surveyNo,
+        uint256 _reqIndex
+    )
+        external
+        view
+        returns (
+            uint256
+        )
+    {
+
         uint256 BidAmount = landDetalsMap[_state][_district][_city][_surveyNo]
             .requests[_reqIndex]
             .BidAmount;
 
-        string memory NameofRequester = userProfile[requester].fullName;
+        return (BidAmount);
+    }
 
-        return (requester, BidAmount, NameofRequester);
+    function getRequesterName(
+        string memory _state,
+        string memory _district,
+        string memory _city,
+        uint256 _surveyNo,
+        uint256 _reqIndex
+    )
+        external
+        view
+        returns (
+            string memory
+        )
+    {
+        address requester = landDetalsMap[_state][_district][_city][_surveyNo]
+            .requests[_reqIndex]
+            .whoRequested;
+        
+        string memory NameofRequester = userProfile[requester].fullName;
+        return (NameofRequester);
     }
 
     function isAvailable(
@@ -534,14 +568,14 @@ contract Registry {
             string memory,
             string memory,
             string memory,
-            string memory,
+            uint256,
             string memory
         )
     {
         string memory fullName = userProfile[msg.sender].fullName;
         string memory gender = userProfile[msg.sender].gender;
         string memory email = userProfile[msg.sender].email;
-        string memory contact = userProfile[msg.sender].contact;
+        uint256 contact = userProfile[msg.sender].contact;
         string memory residentialAddr = userProfile[msg.sender].residentialAddr;
 
         return (fullName, gender, email, contact, residentialAddr);
