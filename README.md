@@ -1,5 +1,5 @@
 # Tender Allocation System Using Blockchain
- This is my EDI Project in which users can subscribes to Government recent tenders .They can also see , Trade and mutually Exchange tenders 
+ This is my EDI Project in which users can subscribes to Government recent tenders .They can also see , Trade and mutually Exchange tenders. This is Only Solidity Realted Part is There in this Repository . For Full Project Check out SecureBid_Final Repository  
 
 # Features :
 - Allocate Tenders
